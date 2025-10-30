@@ -5,6 +5,7 @@ export namespace AuthApi {
   export interface LoginParams {
     password?: string;
     username?: string;
+    tenantCode?: string;
   }
 
   /** 登录接口返回值 */
@@ -78,4 +79,77 @@ export async function getAccessCodesApi() {
     console.error('获取权限码失败:', error);
     return [];
   }
+}
+
+/**
+ * 切换租户（登录后调用，使用租户ID）
+ */
+export async function switchTenantApi(tenantId: number) {
+  return requestClient.post<any>('/auth/switch-tenant', null, {
+    params: { tenantId },
+  });
+}
+
+/**
+ * 获取当前用户的租户列表（登录后调用）
+ */
+export async function getUserTenantsApi() {
+  return requestClient.get<any[]>('/system/user-tenant/my-tenants');
+}
+
+/**
+ * 获取用户可用的租户列表（登录前调用，使用用户名）
+ */
+export async function getUserTenantsByUsernameApi(username: string) {
+  return requestClient.get<any[]>('/auth/user-tenants', {
+    params: { username },
+  });
+}
+
+/**
+ * 获取所有可用的租户列表（登录页面加载时调用）
+ */
+export async function getAllTenantsApi() {
+  return requestClient.get<any[]>('/auth/tenants');
+}
+
+/**
+ * 管理员切换到其他用户（用于调试）
+ * 返回新的 token 和用户信息
+ */
+export async function switchToUserApi(targetUserId: number, tenantId?: number) {
+  const result = await requestClient.post<{ token: string; userInfo: any }>(
+    '/auth/switch-to-user',
+    null,
+    {
+      params: { targetUserId, tenantId },
+    },
+  );
+  // 返回格式与登录接口一致
+  return {
+    accessToken: result.token,
+    userInfo: result.userInfo,
+  };
+}
+
+/**
+ * 获取指定用户的租户列表
+ */
+export async function getUserTenantListApi(userId: number) {
+  return requestClient.get<any[]>(`/system/user-tenant/user/${userId}`);
+}
+
+/**
+ * 切换回原账号
+ * 返回新的 token 和用户信息
+ */
+export async function switchBackToOriginalApi() {
+  const result = await requestClient.post<{ token: string; userInfo: any }>(
+    '/auth/switch-back',
+  );
+  // 返回格式与登录接口一致
+  return {
+    accessToken: result.token,
+    userInfo: result.userInfo,
+  };
 }

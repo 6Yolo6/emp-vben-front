@@ -76,7 +76,7 @@ const [Modal, modalApi] = useVbenModal({
   <Modal title="分配岗位" class="w-1/3">
     <div class="p-4">
       <Spin :spinning="loading">
-        <CheckboxGroup :value="selectedPosts" class="post-list">
+        <CheckboxGroup v-model:value="selectedPosts" class="post-list">
           <div v-for="post in postList" :key="post.id" class="post-item">
             <Checkbox :value="post.id">
               {{ post.postName }}

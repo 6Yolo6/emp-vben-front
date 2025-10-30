@@ -108,6 +108,40 @@ export const useAuthStore = defineStore('auth', () => {
     return userInfo;
   }
 
+  /**
+   * 切换租户
+   */
+  async function switchTenant(tenantCode: string) {
+    try {
+      const { switchTenantApi } = await import('#/api/core/auth');
+      const userInfo = await switchTenantApi(tenantCode);
+      
+      // 更新用户信息
+      userStore.setUserInfo(userInfo);
+      
+      // 重新获取权限码
+      const accessCodes = await getAccessCodesApi();
+      accessStore.setAccessCodes(accessCodes);
+      
+      notification.success({
+        description: `已切换到: ${userInfo.tenantName || tenantCode}`,
+        duration: 2,
+        message: '切换租户成功',
+      });
+      
+      // 刷新页面以重新加载数据
+      window.location.reload();
+    } catch (error) {
+      console.error('切换租户失败:', error);
+      notification.error({
+        description: '切换租户失败，请重试',
+        duration: 3,
+        message: '切换失败',
+      });
+      throw error;
+    }
+  }
+
   function $reset() {
     loginLoading.value = false;
   }
@@ -118,5 +152,6 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUserInfo,
     loginLoading,
     logout,
+    switchTenant,
   };
 });

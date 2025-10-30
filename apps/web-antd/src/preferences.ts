@@ -10,6 +10,6 @@ export const overridesPreferences = defineOverridesPreferences({
   app: {
     name: import.meta.env.VITE_APP_TITLE,
     // 登录过期模式：'modal' 弹窗模式 | 'page' 页面跳转模式
-    loginExpiredMode: 'modal',
+    loginExpiredMode: 'page',
   },
 });

@@ -32,14 +32,6 @@ const [Form, formApi] = useVbenForm({
   layout: 'horizontal',
   schema: [
     {
-      component: 'Input',
-      fieldName: 'id',
-      dependencies: {
-        triggerFields: [''],
-        show: () => false,
-      },
-    },
-    {
       fieldName: 'parentId',
       label: '上级部门',
       component: 'TreeSelect',

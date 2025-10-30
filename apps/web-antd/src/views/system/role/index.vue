@@ -196,7 +196,7 @@ onMounted(() => {
                 size="small"
                 @click="handleAssignPermissions(record)"
               >
-                分配权限
+                菜单权限
               </AButton>
               <AButton
                 v-if="record.dataScope === 5"

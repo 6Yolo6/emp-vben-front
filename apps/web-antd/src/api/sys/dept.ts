@@ -17,6 +17,13 @@ export async function getDeptTreeApi() {
   return requestClient.get<DeptTreeNode[]>(Api.DeptTree);
 }
 
+// 根据租户ID查询部门树
+export async function getDeptTreeByTenantApi(tenantId: number) {
+  return requestClient.get<DeptTreeNode[]>(`${Api.DeptTree}/by-tenant`, {
+    params: { tenantId },
+  });
+}
+
 // 查询部门列表
 export async function getDeptListApi() {
   return requestClient.get<Dept[]>(Api.DeptList);

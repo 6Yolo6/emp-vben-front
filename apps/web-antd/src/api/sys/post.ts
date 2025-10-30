@@ -48,3 +48,10 @@ export async function getPostRolesApi(id: number) {
 export async function assignPostRolesApi(id: number, roleIds: number[]) {
   return requestClient.post(`/system/post/${id}/roles`, roleIds);
 }
+
+// 根据租户ID查询岗位列表
+export async function getPostListByTenantApi(tenantId: number) {
+  return requestClient.get<any[]>('/system/post/list/by-tenant', {
+    params: { tenantId },
+  });
+}

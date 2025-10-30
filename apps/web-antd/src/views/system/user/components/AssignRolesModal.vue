@@ -76,7 +76,7 @@ const [Modal, modalApi] = useVbenModal({
   <Modal title="分配角色" class="w-1/3">
     <div class="p-4">
       <Spin :spinning="loading">
-        <CheckboxGroup :value="selectedRoles" class="role-list">
+        <CheckboxGroup v-model:value="selectedRoles" class="role-list">
           <div v-for="role in roleList" :key="role.id" class="role-item">
             <Checkbox :value="role.id">
               {{ role.roleName }}

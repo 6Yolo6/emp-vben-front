@@ -26,14 +26,6 @@ const [Form, formApi] = useVbenForm({
   layout: 'horizontal',
   schema: [
     {
-      component: 'Input',
-      fieldName: 'id',
-      dependencies: {
-        triggerFields: [''],
-        show: () => false,
-      },
-    },
-    {
       fieldName: 'postName',
       label: '岗位名称',
       component: 'Input',

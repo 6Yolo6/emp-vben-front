@@ -14,6 +14,39 @@ export function useGridColumns(): VxeTableGridOptions['columns'] {
       minWidth: 120,
     },
     {
+      field: 'primaryTenantName',
+      title: '主单位',
+      minWidth: 120,
+      formatter: ({ cellValue }) => {
+        return cellValue || '-';
+      },
+    },
+    {
+      field: 'primaryDeptName',
+      title: '部门',
+      minWidth: 120,
+      formatter: ({ cellValue }) => {
+        return cellValue || '-';
+      },
+    },
+    {
+      field: 'primaryPostNames',
+      title: '岗位',
+      minWidth: 150,
+      formatter: ({ cellValue }) => {
+        if (!cellValue || !Array.isArray(cellValue)) return '-';
+        return cellValue.join(', ');
+      },
+    },
+    {
+      field: 'primaryMainPostName',
+      title: '主岗位',
+      minWidth: 120,
+      formatter: ({ cellValue }) => {
+        return cellValue || '-';
+      },
+    },
+    {
       field: 'email',
       title: '邮箱',
       minWidth: 180,

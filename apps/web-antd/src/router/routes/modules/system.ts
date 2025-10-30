@@ -55,6 +55,15 @@ const routes: RouteRecordRaw[] = [
           title: '菜单管理',
         },
       },
+      {
+        name: 'SystemTenant',
+        path: '/system/tenant',
+        component: () => import('#/views/system/tenant/index.vue'),
+        meta: {
+          icon: 'lucide:building-2',
+          title: '租户管理',
+        },
+      },
     ],
   },
 ];

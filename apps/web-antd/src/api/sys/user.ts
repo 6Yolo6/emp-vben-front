@@ -78,3 +78,18 @@ export async function getUserPostsApi(id: number) {
 export async function assignUserPostsApi(id: number, postIds: number[]) {
   return requestClient.post(`${Api.UserPosts}/${id}/posts`, postIds);
 }
+
+// 获取用户权限信息
+export async function getUserPermissionsApi(id: number) {
+  return requestClient.get<any>(`/system/user/${id}/permissions`);
+}
+
+// 获取用户直接分配的菜单ID
+export async function getUserDirectMenusApi(id: number) {
+  return requestClient.get<number[]>(`/system/user/${id}/direct-menus`);
+}
+
+// 分配用户权限
+export async function assignUserPermissionsApi(id: number, menuIds: number[]) {
+  return requestClient.post(`/system/user/${id}/permissions`, menuIds);
+}

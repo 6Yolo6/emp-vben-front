@@ -2,10 +2,12 @@
 import type { VbenFormSchema } from '@vben/common-ui';
 import type { BasicOption } from '@vben/types';
 
-import { computed, markRaw, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { AuthenticationLogin, SliderCaptcha, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
+import { message } from 'ant-design-vue';
 
 import { getAllTenantsApi } from '#/api/core/auth';
 import { useAuthStore } from '#/store';
@@ -13,6 +15,7 @@ import { useAuthStore } from '#/store';
 defineOptions({ name: 'Login' });
 
 const authStore = useAuthStore();
+const route = useRoute();
 
 const tenantOptions = ref<BasicOption[]>([]);
 const loadingTenants = ref(false);
@@ -60,16 +63,32 @@ const loadAllTenants = async () => {
   }
 };
 
+// 是否是登录过期 - 检查 URL 参数或 accessStore 状态
+const isExpired = computed(() => {
+  return route.query.expired === '1' || localStorage.getItem('login_expired') === '1';
+});
+
 // 组件挂载后立即加载租户列表
 onMounted(() => {
   // console.log('Login组件已挂载，开始加载租户');
   loadAllTenants();
+  
+  // 登录成功后清除过期标识
+  // 这里只是读取，清除会在登录成功后进行
+});
+
+// 监听登录成功，清除过期标识
+watch(() => authStore.loginLoading, (loading, oldLoading) => {
+  if (oldLoading && !loading) {
+    // 登录完成，清除过期标识
+    localStorage.removeItem('login_expired');
+  }
 });
 
 // 表单配置
 const formSchema = computed((): VbenFormSchema[] => {
   const options = tenantOptions.value;
-  
+
   return [
     {
       component: 'VbenSelect',
@@ -115,6 +134,14 @@ const formSchema = computed((): VbenFormSchema[] => {
   <AuthenticationLogin
     :form-schema="formSchema"
     :loading="authStore.loginLoading"
+    :title="
+      isExpired ? '登录已过期 ⏰' : `${$t('authentication.welcomeBack')} 👋🏻`
+    "
+    :sub-title="
+      isExpired
+        ? '您的登录已过期，请重新登录以继续使用'
+        : $t('authentication.loginSubtitle')
+    "
     @submit="authStore.authLogin"
   />
 </template>

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page, useVbenModal } from '@vben/common-ui';
@@ -28,6 +28,7 @@ import {
   switchToUserApi,
   updateUserStatusApi,
 } from '#/api';
+import { getDictDataByType, type DictApi } from '#/api/sys/dict';
 
 import AssignUserPermissionsModal from './components/AssignUserPermissionsModal.vue';
 import ResetPasswordModal from './components/ResetPasswordModal.vue';
@@ -90,14 +91,80 @@ const searchForm = ref({
   status: undefined as number | undefined,
 });
 
-// 状态选项
-const statusOptions = [
+// 状态选项 - 暂时使用硬编码，避免字典加载影响页面
+const statusOptions = ref<Array<{ label: string; value: number | undefined }>>([
   { label: '全部', value: undefined },
   { label: '在职', value: 1 },
   { label: '辞职', value: 2 },
   { label: '调出', value: 3 },
   { label: '退休', value: 4 },
-];
+]);
+
+// 状态字典映射 - 用于显示标签和颜色
+const statusDict = ref<Map<number, DictApi.DictData>>(new Map());
+
+// 加载状态字典
+async function loadStatusDict() {
+  try {
+    const data = await getDictDataByType('sys_user_status');
+    if (data && Array.isArray(data)) {
+      // 构建状态选项
+      statusOptions.value = [
+        { label: '全部', value: undefined },
+        ...data.map((item: DictApi.DictData) => ({
+          label: item.dictLabel,
+          value: Number(item.dictValue),
+        })),
+      ];
+
+      // 构建状态字典映射
+      data.forEach((item: DictApi.DictData) => {
+        statusDict.value.set(Number(item.dictValue), item);
+      });
+    }
+  } catch (error) {
+    console.error('加载状态字典失败:', error);
+    // 字典加载失败时使用默认值
+    statusOptions.value = [
+      { label: '全部', value: undefined },
+      { label: '在职', value: 1 },
+      { label: '辞职', value: 2 },
+      { label: '调出', value: 3 },
+      { label: '退休', value: 4 },
+    ];
+  }
+}
+
+// 获取状态标签
+function getStatusLabel(status: number): string {
+  return statusDict.value.get(status)?.dictLabel || '未知';
+}
+
+// 获取状态颜色
+function getStatusColor(status: number): string {
+  const item = statusDict.value.get(status);
+  if (!item?.listClass) return 'default';
+
+  // 映射字典颜色到 ant-design 的 tag 颜色
+  const colorMap: Record<string, string> = {
+    success: 'success',
+    error: 'error',
+    warning: 'warning',
+    default: 'default',
+    primary: 'blue',
+  };
+
+  return colorMap[item.listClass] || 'default';
+}
+
+// 页面加载时获取字典（不阻塞页面渲染）
+// 暂时注释掉，避免影响其他页面
+// onMounted(() => {
+//   // 使用 setTimeout 确保不阻塞页面渲染
+//   setTimeout(() => {
+//     loadStatusDict();
+//   }, 0);
+// });
 
 /** 刷新表格 */
 function onRefresh() {
@@ -312,7 +379,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
 
     <!-- 租户选择弹窗 -->
     <Modal
-      v-model:open="tenantSelectVisible"
+      :open="tenantSelectVisible"
       title="选择登录单位"
       @ok="handleTenantSelectOk"
       @cancel="handleTenantSelectCancel"
@@ -322,7 +389,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
           用户 "{{ selectedUser?.nickname || selectedUser?.username }}"
           属于多个单位，请选择要登录的单位：
         </p>
-        <ARadioGroup v-model:value="selectedTenantId" class="w-full">
+        <ARadioGroup :value="selectedTenantId" class="w-full">
           <div
             v-for="tenant in userTenants"
             :key="tenant.tenantId"
@@ -351,7 +418,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     </Modal>
 
     <!-- 搜索表单 -->
-    <div class="mb-4 rounded bg-white p-4">
+    <div class="bg-card border-border mb-4 rounded border p-4">
       <AForm layout="inline">
         <AFormItem label="用户名">
           <AInput
@@ -410,28 +477,8 @@ const [Grid, gridApi] = useVbenVxeGrid({
         <AButton type="primary" @click="handleCreate">新增用户</AButton>
       </template>
       <template #status="{ row }">
-        <ATag
-          :color="
-            row.primaryStatus === 1
-              ? 'success'
-              : row.primaryStatus === 2
-                ? 'warning'
-                : row.primaryStatus === 3
-                  ? 'processing'
-                  : 'default'
-          "
-        >
-          {{
-            row.primaryStatus === 1
-              ? '在职'
-              : row.primaryStatus === 2
-                ? '辞职'
-                : row.primaryStatus === 3
-                  ? '调出'
-                  : row.primaryStatus === 4
-                    ? '退休'
-                    : '未知'
-          }}
+        <ATag :color="getStatusColor(row.primaryStatus)">
+          {{ getStatusLabel(row.primaryStatus) }}
         </ATag>
       </template>
       <template #actions="{ row }">

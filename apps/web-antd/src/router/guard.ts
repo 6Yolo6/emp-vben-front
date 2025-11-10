@@ -71,13 +71,24 @@ function setupAccessGuard(router: Router) {
 
       // 没有访问权限，跳转登录页面
       if (to.fullPath !== LOGIN_PATH) {
+        // 判断是否是从已登录状态跳转过来的（token过期）
+        const isExpired = from.path !== LOGIN_PATH && from.matched.length > 0;
+        
+        // 设置过期标识到 localStorage
+        if (isExpired) {
+          localStorage.setItem('login_expired', '1');
+        }
+        
         return {
           path: LOGIN_PATH,
           // 如不需要，直接删除 query
-          query:
-            to.fullPath === preferences.app.defaultHomePath
+          query: {
+            ...(to.fullPath === preferences.app.defaultHomePath
               ? {}
-              : { redirect: encodeURIComponent(to.fullPath) },
+              : { redirect: encodeURIComponent(to.fullPath) }),
+            // 添加过期标识
+            ...(isExpired ? { expired: '1' } : {}),
+          },
           // 携带当前跳转的页面，登录后重新跳转该页面
           replace: true,
         };

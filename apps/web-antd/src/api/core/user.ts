@@ -11,12 +11,16 @@ export async function getUserInfoApi() {
 
   // 将后端返回的用户信息转换为 Vben 期望的格式
   return {
-    userId: userInfo.id?.toString() || '',
+    userId: userInfo.userId?.toString() || '',
     username: userInfo.username || '',
     realName: userInfo.nickname || userInfo.username || '',
     avatar: userInfo.avatar || '',
     desc: userInfo.remark || '',
     homePath: '/dashboard',
     roles: userInfo.roles || [],
+    // 租户信息
+    tenantId: userInfo.tenantId,
+    tenantCode: userInfo.tenantCode,
+    tenantName: userInfo.tenantName,
   } as UserInfo;
 }

@@ -38,6 +38,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     const authStore = useAuthStore();
     accessStore.setAccessToken(null);
 
+    // 设置登录过期标识
+    localStorage.setItem('login_expired', '1');
+
     // 如果配置为弹窗模式，显示登录过期弹窗
     if (preferences.app.loginExpiredMode === 'modal') {
       console.log('进入 modal 分支，设置登录过期弹窗');

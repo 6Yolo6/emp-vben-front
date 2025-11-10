@@ -64,6 +64,44 @@ const routes: RouteRecordRaw[] = [
           title: '租户管理',
         },
       },
+      {
+        name: 'SystemDictType',
+        path: '/system/dict/type',
+        component: () => import('#/views/system/dict/type/index.vue'),
+        meta: {
+          icon: 'lucide:book-open',
+          title: '字典管理',
+          keepAlive: false,
+        },
+      },
+      {
+        name: 'SystemDictData',
+        path: '/system/dict/data',
+        component: () => import('#/views/system/dict/data/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '字典数据',
+          keepAlive: false,
+        },
+      },
+      {
+        name: 'SystemConfig',
+        path: '/system/config',
+        component: () => import('#/views/system/config/index.vue'),
+        meta: {
+          icon: 'lucide:settings-2',
+          title: '参数配置',
+        },
+      },
+      {
+        name: 'SystemFile',
+        path: '/system/file',
+        component: () => import('#/views/system/file/index.vue'),
+        meta: {
+          icon: 'lucide:file',
+          title: '文件管理',
+        },
+      },
     ],
   },
 ];

@@ -385,85 +385,215 @@ modalApi.setData(data).open();
 
 ---
 
-### 1.3 Vben Table
+### 1.3 Vben VxeGrid (推荐)
 
 #### 基本用法
 
+使用 `useVbenVxeGrid` 是 Vben Admin 中最推荐的表格实现方式，它集成了 VxeTable 的强大功能。
+
 ```vue
 <template>
-  <Page auto-content-height>
-    <div class="p-4">
-      <ATable
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      />
-    </div>
+  <Page auto-content-height title="字典管理" description="字典类型管理">
+    <Grid>
+      <!-- 工具栏按钮 -->
+      <template #toolbar-buttons>
+        <ASpace>
+          <AButton type="primary" @click="handleCreate">新增</AButton>
+          <AButton @click="handleRefresh">刷新</AButton>
+        </ASpace>
+      </template>
+
+      <!-- 状态列自定义渲染 -->
+      <template #status="{ row }">
+        <ATag :color="row.status === 1 ? 'success' : 'error'">
+          {{ row.status === 1 ? '正常' : '停用' }}
+        </ATag>
+      </template>
+
+      <!-- 操作列 -->
+      <template #action="{ row }">
+        <ASpace>
+          <AButton size="small" type="link" @click="handleEdit(row)">
+            编辑
+          </AButton>
+          <APopconfirm title="确定要删除吗？" @confirm="handleDelete(row)">
+            <AButton danger size="small" type="link">删除</AButton>
+          </APopconfirm>
+        </ASpace>
+      </template>
+    </Grid>
+
+    <FormModal @success="onRefresh" />
   </Page>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
-import { Table } from 'ant-design-vue';
+import { Page, useVbenModal } from '@vben/common-ui';
+import { Button, message, Popconfirm, Space, Tag } from 'ant-design-vue';
+import { useVbenVxeGrid } from '#/adapter/vxe-table';
+import { getDictTypePage, deleteDictType } from '#/api/sys/dict';
+import DictTypeFormModal from './components/DictTypeFormModal.vue';
 
-const ATable = Table;
+const AButton = Button;
+const ASpace = Space;
+const APopconfirm = Popconfirm;
+const ATag = Tag;
 
-const dataSource = ref([]);
-const loading = ref(false);
-const pagination = ref({
-  current: 1,
-  pageSize: 20,
-  total: 0,
+// 创建表格实例
+const [Grid, gridApi] = useVbenVxeGrid({
+  gridOptions: {
+    columns: [
+      { type: 'seq', width: 60, title: '序号' },
+      { field: 'dictName', title: '字典名称', minWidth: 150 },
+      { field: 'dictType', title: '字典类型', minWidth: 150 },
+      {
+        field: 'status',
+        title: '状态',
+        width: 100,
+        slots: { default: 'status' },
+      },
+      { field: 'remark', title: '备注', minWidth: 200 },
+      {
+        field: 'createTime',
+        title: '创建时间',
+        width: 180,
+        formatter: ({ cellValue }) => {
+          if (!cellValue) return '';
+          return cellValue.replace('T', ' ').slice(0, 19);
+        },
+      },
+      {
+        field: 'action',
+        title: '操作',
+        width: 220,
+        fixed: 'right',
+        slots: { default: 'action' },
+      },
+    ],
+    height: 'auto',
+    keepSource: true,
+    proxyConfig: {
+      ajax: {
+        query: async ({ page }) => {
+          const result = await getDictTypePage({
+            pageNum: page.currentPage,
+            pageSize: page.pageSize,
+          });
+
+          return {
+            total: result.totalRow,
+            items: result.records,
+          };
+        },
+      },
+    },
+    rowConfig: {
+      keyField: 'id',
+      isHover: true,
+    },
+    exportConfig: {},
+    toolbarConfig: {
+      custom: true,
+      export: true,
+      refresh: true,
+      zoom: true,
+      slots: {
+        buttons: 'toolbar-buttons',
+      },
+    },
+  },
 });
 
-const columns = [
-  {
-    title: 'ID',
-    dataIndex: 'id',
-    key: 'id',
-    width: 80,
-  },
-  {
-    title: '用户名',
-    dataIndex: 'username',
-    key: 'username',
-    width: 150,
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 200,
-    fixed: 'right',
-  },
-];
+// 创建弹窗实例
+const [FormModal, formModalApi] = useVbenModal({
+  connectedComponent: DictTypeFormModal,
+  destroyOnClose: true,
+});
 
-async function loadData() {
-  loading.value = true;
+/** 刷新表格 */
+function onRefresh() {
+  gridApi.query();
+}
+
+/** 新增 */
+function handleCreate() {
+  formModalApi.open();
+}
+
+/** 编辑 */
+function handleEdit(row: any) {
+  formModalApi.setData(row).open();
+}
+
+/** 删除 */
+async function handleDelete(row: any) {
   try {
-    const result = await getUserPageApi({
-      pageNum: pagination.value.current,
-      pageSize: pagination.value.pageSize,
-    });
-    dataSource.value = result.records;
-    pagination.value.total = result.totalRow;
-  } finally {
-    loading.value = false;
+    await deleteDictType(row.id);
+    message.success('删除成功');
+    onRefresh();
+  } catch (error) {
+    console.error('删除失败:', error);
   }
 }
-
-function handleTableChange(pag: any) {
-  pagination.value.current = pag.current;
-  pagination.value.pageSize = pag.pageSize;
-  loadData();
-}
-
-onMounted(() => {
-  loadData();
-});
 </script>
+```
+
+#### Grid API 方法
+
+```typescript
+// 刷新表格数据
+gridApi.query();
+
+// 获取表格数据
+const data = gridApi.getData();
+
+// 获取选中行
+const selectedRows = gridApi.getCheckboxRecords();
+
+// 清空选中
+gridApi.clearCheckboxRow();
+
+// 设置选中行
+gridApi.setCheckboxRow(rows, checked);
+```
+
+#### 列配置选项
+
+```typescript
+{
+  field: 'fieldName',        // 字段名
+  title: '列标题',           // 列标题
+  width: 150,                // 固定宽度
+  minWidth: 150,             // 最小宽度
+  fixed: 'left',             // 固定列: 'left' | 'right'
+  align: 'center',           // 对齐方式
+  slots: { default: 'slotName' }, // 自定义插槽
+  formatter: ({ cellValue }) => {  // 格式化函数
+    return cellValue;
+  },
+  sortable: true,            // 可排序
+  filters: [],               // 筛选器
+}
+```
+
+#### 重要配置说明
+
+1. **Page 组件必须添加 `auto-content-height`**：确保表格高度自适应
+2. **proxyConfig.ajax.query 返回格式**：必须返回 `{ total, items }` 格式
+3. **FormModal 必须放在 Page 内部**：避免多个根元素导致页面空白
+4. **路由配置添加 `keepAlive: false`**：避免页面缓存问题
+
+```typescript
+// 路由配置示例
+{
+  name: 'SystemDict',
+  path: '/system/dict',
+  component: () => import('#/views/system/dict/index.vue'),
+  meta: {
+    title: '字典管理',
+    keepAlive: false,  // 禁用缓存
+  },
+}
 ```
 
 ---
@@ -1020,6 +1150,14 @@ if (!isShowLoginExpiredModal) {
 
 ## 更新日志
 
+### 2025-11-03
+
+- 添加 `useVbenVxeGrid` 完整使用示例
+- 添加字典管理实战案例
+- 补充 Grid API 方法说明
+- 添加重要配置注意事项
+- 更新最佳实践
+
 ### 2025-10-21
 
 - 初始版本
@@ -1030,10 +1168,9 @@ if (!isShowLoginExpiredModal) {
 
 ### 待补充
 
-- [ ] 更多组件示例
-- [ ] 高级用法
+- [ ] 更多高级用法示例
 - [ ] 性能优化技巧
-- [ ] 实战案例
+- [ ] 复杂表单场景
 
 ---
 
@@ -1042,3 +1179,424 @@ if (!isShowLoginExpiredModal) {
 - [Vben Admin 官方文档](https://doc.vben.pro/)
 - [Ant Design Vue 文档](https://antdv.com/)
 - [VxeTable 文档](https://vxetable.cn/)
+
+
+---
+
+## 十、布局与主题
+
+### 10.1 BasicLayout 插槽系统
+
+BasicLayout 提供了多个插槽用于自定义布局内容。
+
+#### 可用插槽
+
+| 插槽名称 | 说明 | 示例 |
+|---------|------|------|
+| `#logo` | Logo 区域 | 自定义 Logo |
+| `#menu` | 侧边菜单 | 自定义菜单 |
+| `#user-dropdown` | 用户下拉菜单 | 用户信息展示 |
+| `#notification` | 通知图标 | 消息通知 |
+| `#header-right-{index}` | 头部右侧工具栏 | 自定义按钮 |
+| `#header-left-{index}` | 头部左侧工具栏 | 自定义按钮 |
+| `#extra` | 额外内容 | 全局弹窗等 |
+
+#### 头部工具栏插槽
+
+头部工具栏支持动态插槽，通过 index 控制显示顺序：
+
+```vue
+<template>
+  <BasicLayout>
+    <!-- 租户切换按钮 - 显示在通知按钮(index 50)之前 -->
+    <template #header-right-45>
+      <ADropdown placement="bottomRight" :trigger="['click']">
+        <AButton size="small" class="mr-1">
+          <span class="mr-1">🏢</span>
+          <span>{{ currentTenantName }}</span>
+          <span class="ml-1">▼</span>
+        </AButton>
+        <template #overlay>
+          <AMenu>
+            <AMenuItem
+              v-for="tenant in userTenants"
+              :key="tenant.tenantId"
+              @click="handleSwitchTenant(tenant.tenantId)"
+            >
+              {{ tenant.tenantName }}
+            </AMenuItem>
+          </AMenu>
+        </template>
+      </ADropdown>
+    </template>
+  </BasicLayout>
+</template>
+```
+
+#### 内置工具栏顺序
+
+| Index | 组件 | 说明 |
+|-------|------|------|
+| 50 | global-search | 全局搜索 |
+| 60 | preferences | 偏好设置 |
+| 70 | theme-toggle | 主题切换 |
+| 80 | language-toggle | 语言切换 |
+| 90 | fullscreen | 全屏 |
+| 100 | notification | 通知 |
+| 150 | user-dropdown | 用户下拉 |
+
+### 10.2 主题适配
+
+#### 使用语义化类名
+
+Vben 提供了一套语义化的 CSS 类名，会自动适应浅色/深色主题：
+
+```vue
+<!-- ❌ 错误：使用固定颜色 -->
+<div class="bg-white text-black border-gray-200">
+  内容
+</div>
+
+<!-- ✅ 正确：使用语义化类名 -->
+<div class="bg-card text-foreground border-border">
+  内容
+</div>
+```
+
+#### 常用主题类名
+
+| 类名 | 说明 | 浅色主题 | 深色主题 |
+|------|------|----------|----------|
+| `bg-background` | 页面背景 | 白色 | 深灰 |
+| `bg-card` | 卡片背景 | 白色 | 深灰 |
+| `bg-popover` | 弹出层背景 | 白色 | 深灰 |
+| `text-foreground` | 主要文字 | 黑色 | 白色 |
+| `text-muted-foreground` | 次要文字 | 灰色 | 浅灰 |
+| `border-border` | 边框 | 浅灰 | 深灰 |
+| `border-input` | 输入框边框 | 灰色 | 深灰 |
+
+#### 实战示例：搜索表单
+
+```vue
+<template>
+  <!-- 搜索表单 - 自动适应主题 -->
+  <div class="bg-card border-border mb-4 rounded border p-4">
+    <AForm layout="inline">
+      <AFormItem label="用户名">
+        <AInput placeholder="请输入用户名" style="width: 200px" />
+      </AFormItem>
+      <AFormItem>
+        <ASpace>
+          <AButton type="primary" @click="handleSearch">搜索</AButton>
+          <AButton @click="handleReset">重置</AButton>
+        </ASpace>
+      </AFormItem>
+    </AForm>
+  </div>
+</template>
+```
+
+---
+
+## 十一、认证与登录
+
+### 11.1 登录过期处理
+
+#### 设置过期标识
+
+在多个地方设置登录过期标识，确保用户看到正确的提示：
+
+```typescript
+// 1. 路由守卫中设置
+// router/guard.ts
+if (!accessStore.accessToken) {
+  const isExpired = from.path !== LOGIN_PATH && from.matched.length > 0;
+  
+  if (isExpired) {
+    localStorage.setItem('login_expired', '1');
+  }
+  
+  return {
+    path: LOGIN_PATH,
+    query: {
+      ...(isExpired ? { expired: '1' } : {}),
+    },
+  };
+}
+
+// 2. API 拦截器中设置
+// api/request.ts
+async function doReAuthenticate() {
+  localStorage.setItem('login_expired', '1');
+  await authStore.logout();
+}
+
+// 3. 主动退出时清除
+// store/auth.ts
+async function logout() {
+  localStorage.removeItem('login_expired');
+  await router.replace({ path: LOGIN_PATH });
+}
+```
+
+#### 登录页面检测过期
+
+```vue
+<template>
+  <AuthenticationLogin
+    :form-schema="formSchema"
+    :loading="authStore.loginLoading"
+    :title="isExpired ? '登录已过期 ⏰' : `${$t('authentication.welcomeBack')} 👋🏻`"
+    :sub-title="isExpired ? '您的登录已过期，请重新登录以继续使用' : $t('authentication.loginSubtitle')"
+    @submit="authStore.authLogin"
+  />
+</template>
+
+<script lang="ts" setup>
+import { computed, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
+
+// 检查是否过期
+const isExpired = computed(() => {
+  return route.query.expired === '1' || localStorage.getItem('login_expired') === '1';
+});
+
+// 登录成功后清除标识
+watch(() => authStore.loginLoading, (loading, oldLoading) => {
+  if (oldLoading && !loading) {
+    localStorage.removeItem('login_expired');
+  }
+});
+</script>
+```
+
+### 11.2 租户切换
+
+#### 获取用户租户列表
+
+```typescript
+// api/core/auth.ts
+export async function getUserTenantsApi() {
+  return requestClient.get<TenantInfo[]>('/auth/user-tenants');
+}
+
+export async function switchTenantApi(tenantId: number) {
+  return requestClient.post<UserInfo>('/auth/switch-tenant', null, {
+    params: { tenantId },
+  });
+}
+```
+
+#### 实现租户切换
+
+```vue
+<script lang="ts" setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useUserStore } from '@vben/stores';
+import { getUserTenantsApi, switchTenantApi } from '#/api';
+
+const userStore = useUserStore();
+const userTenants = ref<any[]>([]);
+
+// 当前租户信息
+const currentTenantId = computed(() => userStore.userInfo?.tenantId);
+const currentTenantName = computed(() => userStore.userInfo?.tenantName || '未知单位');
+
+// 加载租户列表
+async function loadUserTenants() {
+  try {
+    localStorage.removeItem('currentTenantId'); // 清除旧的缓存
+    const tenants = await getUserTenantsApi();
+    userTenants.value = tenants || [];
+  } catch (error) {
+    console.error('加载租户列表失败:', error);
+  }
+}
+
+// 切换租户
+async function handleSwitchTenant(tenantId: number) {
+  if (tenantId === currentTenantId.value) return;
+
+  try {
+    const backendUserInfo = await switchTenantApi(tenantId);
+    
+    // 转换为 Vben 格式
+    const userInfo = {
+      userId: backendUserInfo.userId?.toString() || '',
+      username: backendUserInfo.username || '',
+      realName: backendUserInfo.nickname || '',
+      avatar: backendUserInfo.avatar || '',
+      roles: backendUserInfo.roles || [],
+      tenantId: backendUserInfo.tenantId,
+      tenantCode: backendUserInfo.tenantCode,
+      tenantName: backendUserInfo.tenantName,
+    };
+
+    userStore.setUserInfo(userInfo);
+    message.success(`已切换到 ${backendUserInfo.tenantName}`);
+    
+    // 刷新页面
+    await router.push('/');
+  } catch (error) {
+    message.error('切换单位失败');
+  }
+}
+
+// 监听 userInfo 变化
+watch(
+  () => userStore.userInfo,
+  (newUserInfo) => {
+    if (newUserInfo && newUserInfo.tenantId) {
+      loadUserTenants();
+    }
+  },
+  { immediate: true }
+);
+</script>
+```
+
+---
+
+## 十二、API 数据转换
+
+### 12.1 字段映射对照
+
+| 后端字段 | Vben 字段 | 说明 |
+|---------|----------|------|
+| `userId` | `userId` | 用户ID（转为字符串） |
+| `username` | `username` | 用户名 |
+| `nickname` | `realName` | 真实姓名 |
+| `avatar` | `avatar` | 头像 |
+| `remark` | `desc` | 描述 |
+| `roles` | `roles` | 角色列表 |
+| `tenantId` | `tenantId` | 租户ID |
+| `tenantCode` | `tenantCode` | 租户编码 |
+| `tenantName` | `tenantName` | 租户名称 |
+
+---
+
+## 十三、调试技巧
+
+### 13.1 控制台调试
+
+```typescript
+// 添加详细的日志输出
+console.log('用户租户列表:', tenants);
+console.log('当前登录租户ID:', userStore.userInfo?.tenantId);
+console.log('当前登录租户名称:', userStore.userInfo?.tenantName);
+console.log('租户数量:', userTenants.value.length);
+console.log('是否显示切换按钮:', userTenants.value.length > 1);
+```
+
+### 13.2 响应式数据检查
+
+```typescript
+// 使用 watch 监听数据变化
+watch(
+  () => userStore.userInfo,
+  (newValue, oldValue) => {
+    console.log('userInfo 变化:', { newValue, oldValue });
+  },
+  { immediate: true, deep: true }
+);
+```
+
+### 13.3 常见问题排查
+
+#### 问题：userInfo 为 undefined
+
+```typescript
+// 解决方案：延迟加载或使用 watch
+onMounted(() => {
+  // 方案1：延迟检查
+  const checkAndLoad = () => {
+    if (userStore.userInfo && userStore.userInfo.tenantId) {
+      loadData();
+    } else {
+      setTimeout(checkAndLoad, 100);
+    }
+  };
+  checkAndLoad();
+});
+
+// 方案2：使用 watch
+watch(
+  () => userStore.userInfo?.tenantId,
+  (tenantId) => {
+    if (tenantId) {
+      loadData();
+    }
+  },
+  { immediate: true }
+);
+```
+
+#### 问题：插槽不生效
+
+```typescript
+// 检查插槽名称是否正确
+// ❌ 错误
+<template #toolbar-actions>
+
+// ✅ 正确
+<template #header-right-45>
+```
+
+#### 问题：主题切换后样式不变
+
+```typescript
+// 检查是否使用了固定颜色类
+// ❌ 错误
+class="bg-white text-black"
+
+// ✅ 正确
+class="bg-card text-foreground"
+```
+
+---
+
+## 更新日志
+
+### 2025-11-04
+
+- 添加 BasicLayout 插槽系统详细说明
+- 添加主题适配最佳实践
+- 添加登录过期处理完整方案
+- 添加租户切换实现示例
+- 添加 API 数据转换规范
+- 添加调试技巧和常见问题排查
+
+### 2025-11-03
+
+- 添加 `useVbenVxeGrid` 完整使用示例
+- 添加字典管理实战案例
+- 补充 Grid API 方法说明
+- 添加重要配置注意事项
+- 更新最佳实践
+
+### 2025-10-21
+
+- 初始版本
+- 添加 Vben Form、Modal、Table 使用说明
+- 添加 Ant Design Vue 常用组件
+- 添加 VxeTable 基础用法
+- 添加请求封装说明
+
+### 待补充
+
+- [ ] 更多高级用法示例
+- [ ] 性能优化技巧
+- [ ] 复杂表单场景
+- [ ] 国际化配置
+- [ ] 权限指令使用
+
+---
+
+**参考资料**:
+
+- [Vben Admin 官方文档](https://doc.vben.pro/)
+- [Ant Design Vue 文档](https://antdv.com/)
+- [VxeTable 文档](https://vxetable.cn/)
+- [TailwindCSS 文档](https://tailwindcss.com/)

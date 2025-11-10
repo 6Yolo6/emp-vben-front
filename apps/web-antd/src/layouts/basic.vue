@@ -20,12 +20,18 @@ import { openWindow } from '@vben/utils';
 
 import {
   Avatar,
+  Button,
   Dropdown,
   Menu,
   MenuItem,
   MenuDivider,
   message,
 } from 'ant-design-vue';
+
+const AButton = Button;
+const ADropdown = Dropdown;
+const AMenu = Menu;
+const AMenuItem = MenuItem;
 
 import { $t } from '#/locales';
 import {
@@ -78,12 +84,24 @@ const showDot = computed(() =>
 
 // 用户租户列表
 const userTenants = ref<any[]>([]);
-const currentTenantId = ref<number | null>(null);
+
+// 当前租户ID - 优先从 userInfo 获取，其次从 localStorage
+const currentTenantId = computed(() => {
+  return userStore.userInfo?.tenantId || null;
+});
+
+// 当前租户名称
 const currentTenantName = computed(() => {
+  // 优先从 userInfo 获取
+  if (userStore.userInfo?.tenantName) {
+    return userStore.userInfo.tenantName;
+  }
+
+  // 其次从租户列表中查找
   const tenant = userTenants.value.find(
     (t) => t.tenantId === currentTenantId.value,
   );
-  return tenant?.tenantName || '未选择单位';
+  return tenant?.tenantName || '未知单位';
 });
 
 // 保存的账号列表（用于快速切换）
@@ -144,19 +162,19 @@ function handleMakeAll() {
 // 加载用户租户列表
 async function loadUserTenants() {
   try {
-    const tenants = await getUserTenantsApi();
-    userTenants.value = tenants || [];
+    // 清除旧的 localStorage 租户ID（不再使用）
+    localStorage.removeItem('currentTenantId');
 
-    // 从localStorage获取当前租户ID
-    const storedTenantId = localStorage.getItem('currentTenantId');
-    if (storedTenantId) {
-      currentTenantId.value = Number(storedTenantId);
-    } else if (tenants && tenants.length > 0) {
-      // 默认选择第一个租户
-      currentTenantId.value = tenants[0].tenantId;
-    }
+    const tenants = await getUserTenantsApi();
+    console.log('用户租户列表:', tenants);
+    console.log('当前登录租户ID:', userStore.userInfo?.tenantId);
+    console.log('当前登录租户名称:', userStore.userInfo?.tenantName);
+    userTenants.value = tenants || [];
+    console.log('租户数量:', userTenants.value.length);
+    console.log('是否显示切换按钮:', userTenants.value.length > 1);
   } catch (error) {
     console.error('加载租户列表失败:', error);
+    userTenants.value = [];
   }
 }
 
@@ -167,14 +185,47 @@ async function handleSwitchTenant(tenantId: number) {
   }
 
   try {
-    await switchTenantApi(tenantId);
-    currentTenantId.value = tenantId;
-    localStorage.setItem('currentTenantId', String(tenantId));
+    const backendUserInfo = await switchTenantApi(tenantId);
 
-    message.success(`已切换到 ${currentTenantName.value}`);
+    console.log('切换租户返回的数据:', backendUserInfo);
 
-    // 刷新页面以重新加载数据
-    window.location.reload();
+    // 将后端返回的用户信息转换为 Vben 格式
+    const userInfo = {
+      userId: backendUserInfo.userId?.toString() || '',
+      username: backendUserInfo.username || '',
+      realName: backendUserInfo.nickname || backendUserInfo.username || '',
+      avatar: backendUserInfo.avatar || '',
+      desc: backendUserInfo.remark || '',
+      homePath: '/dashboard',
+      roles: backendUserInfo.roles || [],
+      // 租户信息
+      tenantId: backendUserInfo.tenantId,
+      tenantCode: backendUserInfo.tenantCode,
+      tenantName: backendUserInfo.tenantName,
+    };
+
+    // 更新用户信息
+    userStore.setUserInfo(userInfo);
+
+    const tenantName =
+      backendUserInfo.tenantName ||
+      userTenants.value.find((t) => t.tenantId === tenantId)?.tenantName;
+
+    message.success(`已切换到 ${tenantName}`);
+
+    // 重新加载租户列表
+    await loadUserTenants();
+
+    // 使用路由跳转到首页来刷新数据
+    const currentPath = router.currentRoute.value.path;
+    if (currentPath === '/') {
+      // 如果已经在首页，先跳转到一个临时路由再跳回来
+      await router.push('/dashboard');
+      await router.push('/');
+    } else {
+      // 跳转到首页
+      await router.push('/');
+    }
   } catch (error) {
     console.error('切换租户失败:', error);
     message.error('切换单位失败');
@@ -200,33 +251,6 @@ async function handleQuickLogin(account: any) {
   }
 }
 
-// 切换回管理员账号
-async function handleSwitchBackToAdmin() {
-  try {
-    const result = await switchBackToOriginalApi();
-
-    // 更新 token
-    if (result.accessToken) {
-      accessStore.setAccessToken(result.accessToken);
-    }
-
-    // 更新用户信息
-    if (result.userInfo) {
-      userStore.setUserInfo(result.userInfo);
-    }
-
-    message.success('已切换回管理员账号');
-
-    // 刷新页面
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
-  } catch (error) {
-    console.error('切换回管理员失败:', error);
-    message.error('切换失败');
-  }
-}
-
 // 加载保存的账号列表
 function loadSavedAccounts() {
   const accounts = localStorage.getItem('savedAccounts');
@@ -240,9 +264,45 @@ function loadSavedAccounts() {
 }
 
 onMounted(() => {
-  loadUserTenants();
   loadSavedAccounts();
+
+  // 延迟加载租户列表，确保 userInfo 已经加载
+  let retryCount = 0;
+  const maxRetries = 50; // 最多重试5秒
+
+  const checkAndLoadTenants = () => {
+    console.log('检查 userInfo:', {
+      userInfo: userStore.userInfo,
+      hasTenantId: userStore.userInfo?.tenantId,
+      retryCount,
+    });
+
+    if (userStore.userInfo && userStore.userInfo.tenantId) {
+      console.log('userInfo 已就绪，加载租户列表');
+      loadUserTenants();
+    } else if (retryCount < maxRetries) {
+      retryCount++;
+      console.log(`userInfo 未就绪，等待... (${retryCount}/${maxRetries})`);
+      setTimeout(checkAndLoadTenants, 100);
+    } else {
+      console.error('userInfo 加载超时，请检查登录状态');
+    }
+  };
+
+  setTimeout(checkAndLoadTenants, 100);
 });
+
+// 监听 userInfo 变化，重新加载租户列表
+watch(
+  () => userStore.userInfo?.tenantId,
+  (newTenantId, oldTenantId) => {
+    console.log('tenantId 变化:', { newTenantId, oldTenantId });
+    if (newTenantId && newTenantId !== oldTenantId) {
+      console.log('租户ID已更新，重新加载租户列表');
+      loadUserTenants();
+    }
+  },
+);
 
 watch(
   () => preferences.app.watermark,
@@ -269,7 +329,7 @@ watch(
         :menus
         :text="userStore.userInfo?.realName"
         :description="currentTenantName"
-        tag-text="Pro"
+        tag-text=""
         @logout="handleLogout"
       />
     </template>
@@ -281,33 +341,26 @@ watch(
         @make-all="handleMakeAll"
       />
     </template>
-    <template #toolbar-actions>
-      <!-- 切换回管理员账号 -->
-      <AButton
-        v-if="isSwitchedUser"
-        type="primary"
-        size="small"
-        @click="handleSwitchBackToAdmin"
-        class="mr-2"
+    <!-- 租户切换按钮 - 使用 header-right-45 插槽，显示在通知按钮之前 -->
+    <template #header-right-45>
+      <ADropdown
+        v-if="userTenants.length > 1"
+        placement="bottomRight"
+        :trigger="['click']"
       >
-        切换回管理员
-      </AButton>
-
-      <!-- 快速切换单位 -->
-      <Dropdown v-if="userTenants.length > 1" placement="bottomRight">
-        <div class="hover:bg-accent flex cursor-pointer items-center px-2">
-          <span class="mr-1 text-sm">🏢</span>
-          <span class="text-sm">{{ currentTenantName }}</span>
-          <span class="ml-1 text-xs">▼</span>
-        </div>
+        <AButton size="small" class="mr-1">
+          <span class="mr-1">🏢</span>
+          <span>{{ currentTenantName }}</span>
+          <span class="ml-1">▼</span>
+        </AButton>
         <template #overlay>
-          <Menu>
-            <MenuItem
+          <AMenu>
+            <AMenuItem
               v-for="tenant in userTenants"
               :key="tenant.tenantId"
               @click="handleSwitchTenant(tenant.tenantId)"
             >
-              <div class="flex items-center justify-between">
+              <div class="flex min-w-[150px] items-center justify-between">
                 <span>{{ tenant.tenantName }}</span>
                 <span
                   v-if="tenant.tenantId === currentTenantId"
@@ -315,16 +368,13 @@ watch(
                   >✓</span
                 >
               </div>
-            </MenuItem>
-          </Menu>
+            </AMenuItem>
+          </AMenu>
         </template>
-      </Dropdown>
+      </ADropdown>
     </template>
     <template #extra>
-      <AuthenticationLoginExpiredModal
-        v-model:open="accessStore.loginExpired"
-        :avatar
-      >
+      <AuthenticationLoginExpiredModal :open="accessStore.loginExpired" :avatar>
         <LoginForm />
       </AuthenticationLoginExpiredModal>
     </template>

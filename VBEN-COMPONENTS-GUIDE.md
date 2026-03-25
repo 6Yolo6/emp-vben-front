@@ -1,15 +1,20 @@
-# Vben Admin 组件使用指南
+# Vben Admin 完整开发指南
 
-> 本文档用于记录 Vben Admin 及相关技术栈的组件使用方法和最佳实践  
-> 随着项目开发持续更新
+> 从传统 Vue 项目迁移到 Vben Admin 企业级前端框架的完整学习文档  
+> 包含组件使用、开发规范、最佳实践等内容
 
-**最后更新**: 2025-10-21  
-**维护人员**: 开发团队
+**文档版本**: v2.0  
+**最后更新**: 2025-01-15  
+**维护人员**: 开发团队  
+**适用人群**: Vue 3 开发者、前端架构师、技术团队
 
 ---
 
-## 目录
+## 📚 目录
 
+- [框架概述](#框架概述)
+- [快速开始](#快速开始)
+- [核心概念](#核心概念)
 - [一、Vben 核心组件](#一vben-核心组件)
   - [1.1 Vben Form](#11-vben-form)
   - [1.2 Vben Modal](#12-vben-modal)
@@ -35,6 +40,145 @@
 - [七、工具函数](#七工具函数)
 - [八、最佳实践](#八最佳实践)
 - [九、常见问题](#九常见问题)
+
+---
+
+## 框架概述
+
+### 什么是 Vben Admin？
+
+Vben Admin 是一个基于 Vue 3、Vite、TypeScript 的现代化中后台前端解决方案，提供了开箱即用的企业级功能。
+
+### 核心特性
+
+- ✅ **现代技术栈**: Vue 3 + Vite 5 + TypeScript
+- ✅ **UI 组件库**: Ant Design Vue 4.x
+- ✅ **Monorepo 架构**: pnpm workspace 管理
+- ✅ **权限系统**: 完整的 RBAC 权限控制
+- ✅ **动态路由**: 基于后端数据的动态路由
+- ✅ **国际化**: 内置 i18n 支持
+- ✅ **主题配置**: 灵活的主题定制
+- ✅ **Mock 方案**: 开发阶段的数据模拟
+
+### 为什么选择 Vben Admin？
+
+| 对比项   | 传统 Vue 项目 | Vben Admin     |
+| -------- | ------------- | -------------- |
+| 项目结构 | 需自行设计    | 规范化、模块化 |
+| 权限系统 | 需自行实现    | 开箱即用       |
+| 组件封装 | 需自行封装    | 丰富的业务组件 |
+| 开发效率 | 基础          | 提升 30-50%    |
+| 代码质量 | 依赖团队      | 统一规范       |
+| 维护成本 | 较高          | 较低           |
+
+### 官方资源
+
+- 📖 官方文档: https://doc.vben.pro/
+- 💻 GitHub: https://github.com/vbenjs/vue-vben-admin
+- 🎨 在线预览: https://vben.pro/
+- 💬 Discord: https://discord.gg/fXemNNaA
+
+---
+
+## 快速开始
+
+### 环境要求
+
+- Node.js >= 18.0.0
+- pnpm >= 8.0.0
+- Git
+
+### 安装步骤
+
+#### 1. 下载项目
+
+```bash
+# 方式1: 使用 degit (推荐)
+npx degit vbenjs/vue-vben-admin emp-vben-admin
+
+# 方式2: 克隆仓库
+git clone https://github.com/vbenjs/vue-vben-admin.git emp-vben-admin
+```
+
+#### 2. 安装依赖
+
+```bash
+cd emp-vben-admin
+
+# 安装 pnpm (如果未安装)
+npm install -g pnpm
+
+# 安装项目依赖
+pnpm install
+```
+
+#### 3. 启动项目
+
+```bash
+# 开发模式
+pnpm dev
+
+# 构建生产版本
+pnpm build
+
+# 预览生产版本
+pnpm preview
+```
+
+### 常用命令
+
+```bash
+# 启动开发服务器
+pnpm dev
+
+# 构建生产版本
+pnpm build
+
+# 预览生产版本
+pnpm preview
+
+# 代码检查
+pnpm lint
+
+# 代码格式化
+pnpm format
+
+# 类型检查
+pnpm typecheck
+
+# 清理缓存
+pnpm clean
+```
+
+---
+
+## 核心概念
+
+### Monorepo 架构
+
+Vben Admin 使用 pnpm workspace 管理多包项目:
+
+```
+emp-vben-admin/
+├── apps/              # 应用目录
+│   └── web-antd/     # 主应用 (Ant Design Vue)
+├── packages/          # 共享包
+│   ├── @vben/        # 核心包
+│   ├── common-ui/    # 通用 UI 组件
+│   ├── hooks/        # 通用 Hooks
+│   ├── request/      # 请求封装
+│   └── utils/        # 工具函数
+└── internal/          # 内部工具
+    ├── vite-config/  # Vite 配置
+    └── tsconfig/     # TypeScript 配置
+```
+
+**优势**:
+
+- 代码复用性高
+- 依赖管理统一
+- 构建效率提升
+- 版本控制简单
 
 ---
 
@@ -1557,7 +1701,72 @@ class="bg-card text-foreground"
 
 ---
 
-## 更新日志
+## 📈 项目进度
+
+### ✅ 已完成功能
+
+#### 基础功能模块
+- [x] 用户管理 (CRUD + 权限分配 + 数据权限)
+- [x] 角色管理 (CRUD + 权限分配 + 数据范围)
+- [x] 菜单管理 (树形结构 + 权限控制)
+- [x] 部门管理 (树形结构)
+- [x] 岗位管理 (CRUD)
+- [x] 字典管理 (类型 + 数据)
+- [x] 配置管理 (系统配置)
+
+#### 高级功能模块
+- [x] 文件管理 (上传 + MinIO 集成)
+- [x] 站内消息 (发送 + 接收 + 通知 + 双击查看)
+- [x] 消息模板 (模板管理)
+- [x] 租户管理 (多租户支持 + 租户切换)
+
+#### 认证与权限
+- [x] 登录认证 (JWT + 权限验证)
+- [x] 登录过期处理 (友好提示)
+- [x] 动态路由 (基于权限)
+- [x] 数据权限 (自定义数据范围)
+- [x] 租户隔离 (数据隔离)
+
+#### 用户体验优化
+- [x] 主题切换 (浅色/深色自适应)
+- [x] 时间格式化显示
+- [x] 消息通知 (右上角通知图标)
+- [x] 双击查看详情
+- [x] Modal 数据传递优化
+
+### 🚧 进行中功能
+
+- [ ] WebSocket 实时通知
+- [ ] 操作日志记录
+- [ ] 系统监控面板
+
+### 📋 待开发功能
+
+- [ ] 定时任务管理
+- [ ] 代码生成器
+- [ ] 接口文档集成
+- [ ] 数据备份恢复
+- [ ] 多语言支持完善
+
+### 🎯 技术债务
+
+- [ ] 单元测试覆盖
+- [ ] E2E 测试
+- [ ] 性能优化
+- [ ] 代码规范检查
+
+---
+
+## 📝 更新日志
+
+### 2025-11-17
+
+- ✅ 完成消息通知功能
+- ✅ 修复 Modal 数据传递问题 (`modalApi.setData(data).open()`)
+- ✅ 添加时间格式化显示
+- ✅ 完善双击查看功能
+- ✅ 合并学习指南到组件指南
+- ✅ 更新项目进度文档
 
 ### 2025-11-04
 
@@ -1584,19 +1793,41 @@ class="bg-card text-foreground"
 - 添加 VxeTable 基础用法
 - 添加请求封装说明
 
-### 待补充
-
-- [ ] 更多高级用法示例
-- [ ] 性能优化技巧
-- [ ] 复杂表单场景
-- [ ] 国际化配置
-- [ ] 权限指令使用
 
 ---
 
-**参考资料**:
+## 🤝 贡献指南
+
+1. Fork 项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
+
+---
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+---
+
+## 📚 参考资料
+
+### 官方文档
 
 - [Vben Admin 官方文档](https://doc.vben.pro/)
 - [Ant Design Vue 文档](https://antdv.com/)
 - [VxeTable 文档](https://vxetable.cn/)
+- [Vue 3 文档](https://cn.vuejs.org/)
 - [TailwindCSS 文档](https://tailwindcss.com/)
+
+### 示例项目
+
+- [yudao-ui-admin-vben](https://github.com/yudaocode/yudao-ui-admin-vben)
+- [Vben Admin 示例](https://github.com/vbenjs/vue-vben-admin)
+
+---
+
+**文档维护**: 持续更新中  
+**技术支持**: 开发团队

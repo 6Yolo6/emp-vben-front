@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { NotificationItem } from '@vben/layouts';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
@@ -39,48 +39,27 @@ import {
   getUserTenantsApi,
   switchBackToOriginalApi,
 } from '#/api';
+import {
+  getMyMessagePageApi,
+  batchMarkAsReadApi,
+  markAsReadApi,
+} from '#/api/sys/message';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
+import { useMessageNotification, unreadCount } from '#/composables/useMessageNotification';
 
-const notifications = ref<NotificationItem[]>([
-  {
-    avatar: 'https://avatar.vercel.sh/vercel.svg?text=VB',
-    date: '3小时前',
-    isRead: true,
-    message: '描述信息描述信息描述信息',
-    title: '收到了 14 份新周报',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '刚刚',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '朱偏右 回复了你',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '2024-01-01',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '曲丽丽 评论了你',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '代办提醒',
-  },
-]);
+const notifications = ref<NotificationItem[]>([]);
+
+// 使用消息通知 composable
+const { refreshUnreadCount } = useMessageNotification();
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
 const accessStore = useAccessStore();
 const router = useRouter();
 const { destroyWatermark, updateWatermark } = useWatermark();
-const showDot = computed(() =>
-  notifications.value.some((item) => !item.isRead),
-);
+// 使用 WebSocket 实时未读数量
+const showDot = computed(() => unreadCount.value > 0);
 
 // 用户租户列表
 const userTenants = ref<any[]>([]);
@@ -155,8 +134,96 @@ function handleNoticeClear() {
   notifications.value = [];
 }
 
-function handleMakeAll() {
-  notifications.value.forEach((item) => (item.isRead = true));
+async function handleMakeAll() {
+  // 标记所有未读消息为已读
+  const unreadIds = notifications.value
+    .filter((item) => !item.isRead)
+    .map((item) => Number(item.id));
+
+  if (unreadIds.length > 0) {
+    try {
+      // 调用批量标记已读API
+      await batchMarkAsReadApi(unreadIds);
+      notifications.value.forEach((item) => (item.isRead = true));
+      message.success('已全部标记为已读');
+      
+      // 刷新未读数量
+      refreshUnreadCount();
+    } catch (error) {
+      console.error('标记已读失败:', error);
+    }
+  }
+}
+
+// 加载站内消息
+async function loadMessages() {
+  try {
+    const result = await getMyMessagePageApi({
+      pageNum: 1,
+      pageSize: 10,
+    });
+
+    // 转换为通知格式
+    notifications.value = (result.records || []).map((msg: any) => ({
+      id: msg.id,
+      avatar: `https://avatar.vercel.sh/${msg.senderName}`,
+      date: msg.createTime ? msg.createTime.replace('T', ' ').slice(0, 19) : '',
+      isRead: msg.isRead === 1,
+      message: msg.content,
+      title: msg.title,
+    }));
+  } catch (error) {
+    console.error('加载消息失败:', error);
+  }
+}
+
+// 点击通知项 - 跳转到消息详情
+async function handleNotificationClick(item: NotificationItem) {
+  // 标记为已读
+  if (!item.isRead) {
+    try {
+      await markAsReadApi(Number(item.id));
+      item.isRead = true;
+      
+      // 刷新未读数量
+      refreshUnreadCount();
+    } catch (error) {
+      console.error('标记已读失败:', error);
+    }
+  }
+
+  // 跳转到站内消息页面,并带上消息ID
+  router.push({
+    path: '/system/message',
+    query: { messageId: item.id },
+  });
+}
+
+// 查看所有消息 - 跳转到站内消息页面
+function handleViewAllMessages() {
+  router.push('/system/message');
+}
+
+// 定时刷新消息（每30秒）
+let messageRefreshTimer: number | null = null;
+
+function startMessageRefresh() {
+  // 清除旧的定时器
+  if (messageRefreshTimer) {
+    clearInterval(messageRefreshTimer);
+  }
+
+  // 每30秒刷新一次消息
+  messageRefreshTimer = window.setInterval(() => {
+    loadMessages();
+  }, 30000);
+}
+
+function stopMessageRefresh() {
+  if (messageRefreshTimer) {
+    clearInterval(messageRefreshTimer);
+    messageRefreshTimer = null;
+  }
 }
 
 // 加载用户租户列表
@@ -265,6 +332,8 @@ function loadSavedAccounts() {
 
 onMounted(() => {
   loadSavedAccounts();
+  loadMessages(); // 加载站内消息
+  startMessageRefresh(); // 启动定时刷新
 
   // 延迟加载租户列表，确保 userInfo 已经加载
   let retryCount = 0;
@@ -290,6 +359,11 @@ onMounted(() => {
   };
 
   setTimeout(checkAndLoadTenants, 100);
+});
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  stopMessageRefresh();
 });
 
 // 监听 userInfo 变化，重新加载租户列表
@@ -339,6 +413,8 @@ watch(
         :notifications="notifications"
         @clear="handleNoticeClear"
         @make-all="handleMakeAll"
+        @read="handleNotificationClick"
+        @view-all="handleViewAllMessages"
       />
     </template>
     <!-- 租户切换按钮 - 使用 header-right-45 插槽，显示在通知按钮之前 -->

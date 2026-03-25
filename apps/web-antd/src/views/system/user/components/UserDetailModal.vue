@@ -50,7 +50,7 @@ const [Modal, modalApi] = useVbenModal({
     const data = modalApi.getData();
     if (data) {
       userDetail.value = data;
-      console.log('用户详情:', userDetail.value);
+      // console.log('用户详情:', userDetail.value);
 
       // 加载用户权限信息
       await loadUserPermissions(data.id);

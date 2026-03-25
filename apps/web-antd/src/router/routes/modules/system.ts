@@ -102,6 +102,24 @@ const routes: RouteRecordRaw[] = [
           title: '文件管理',
         },
       },
+      {
+        name: 'SystemMessage',
+        path: '/system/message',
+        component: () => import('#/views/system/message/index.vue'),
+        meta: {
+          icon: 'lucide:mail',
+          title: '站内消息',
+        },
+      },
+      {
+        name: 'SystemMessageTemplate',
+        path: '/system/message-template',
+        component: () => import('#/views/system/message-template/index.vue'),
+        meta: {
+          icon: 'lucide:file-text',
+          title: '消息模板',
+        },
+      },
     ],
   },
 ];

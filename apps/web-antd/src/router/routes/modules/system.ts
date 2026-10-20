@@ -120,6 +120,24 @@ const routes: RouteRecordRaw[] = [
           title: '消息模板',
         },
       },
+      {
+        name: 'SystemMailConfig',
+        path: '/system/mail-config',
+        component: () => import('#/views/system/mail-config/index.vue'),
+        meta: {
+          icon: 'lucide:mail-check',
+          title: '邮件配置',
+        },
+      },
+      {
+        name: 'SystemMailSend',
+        path: '/system/mail-send',
+        component: () => import('#/views/system/mail-send/index.vue'),
+        meta: {
+          icon: 'lucide:send',
+          title: '发送邮件',
+        },
+      },
     ],
   },
 ];
